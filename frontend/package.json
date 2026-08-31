@@ -1,0 +1,32 @@
+{
+  "name": "frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && tsc -b --noEmit",
+    "preview": "vite preview",
+    "serve": "vite preview",
+    "watch": "pnpm run serve",
+    "update": "pnpm update",
+    "generate-types": "openapi-ts --config openapi-ts.config.ts"
+  },
+  "dependencies": {
+    "svelte": "5.57.0",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
+    "@sveltejs/vite-plugin-svelte": "7.3.0",
+    "@tailwindcss/postcss": "4.3.3",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "^26.4.0",
+    "litestar-vite-plugin": "0.31.0",
+    "postcss": "8.5.26",
+    "svelte-check": "4.7.6",
+    "tailwindcss": "4.3.3",
+    "tslib": "2.8.1",
+    "typescript": "6.0.3",
+    "vite": "8.2.2"
+  }
+}
