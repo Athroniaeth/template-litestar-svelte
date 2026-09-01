@@ -41,6 +41,17 @@ repos:
         language: system
         stages: [commit-msg]
 
+      # 5. Frontend lint + format check (eslint + prettier). Runs the whole frontend
+      #    (not per-file) since it executes from frontend/ with its own config; the
+      #    `files` filter only decides when to trigger. Non-writing — on failure run
+      #    `just format`. svelte-check stays in `just lint`/CI (too slow for a commit).
+      - id: frontend-lint
+        name: eslint + prettier (frontend)
+        entry: pnpm -C frontend run lint
+        language: system
+        files: ^frontend/.*\.(ts|js|mjs|svelte|css|html|json)$
+        pass_filenames: false
+
   # Generic hygiene checks. No uv/Python equivalent, so pinned from upstream —
   # the only rev pin in this file; bump deliberately.
   - repo: https://github.com/pre-commit/pre-commit-hooks
