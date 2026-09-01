@@ -1,5 +1,5 @@
 import inspect
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 import pytest
 from litestar import Litestar

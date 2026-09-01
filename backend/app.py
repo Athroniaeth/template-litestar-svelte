@@ -1,6 +1,6 @@
 from litestar import Litestar
 from litestar_granian import GranianPlugin
-from litestar_vite import ViteConfig, VitePlugin, TypeGenConfig
+from litestar_vite import TypeGenConfig, ViteConfig, VitePlugin
 from litestar_vite.config import PathConfig, RuntimeConfig
 
 from backend import DEV_MODE, FRONTEND_ROOT
