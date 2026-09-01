@@ -4,7 +4,6 @@ import litestar from "litestar-vite-plugin";
 
 import tailwindcss from "@tailwindcss/vite";
 
-
 export default defineConfig({
   server: {
     host: "0.0.0.0",
@@ -15,7 +14,6 @@ export default defineConfig({
     },
   },
   plugins: [
-
     tailwindcss(),
 
     svelte(),
@@ -23,7 +21,6 @@ export default defineConfig({
       input: ["src/main.ts", "src/tailwind.css"],
 
       types: "auto",
-
     }),
   ],
 });

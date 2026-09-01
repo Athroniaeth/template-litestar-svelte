@@ -15,17 +15,19 @@ install:
 dev:
     uv run litestar run --reload
 
-# Static checks, no writes: ruff + pyrefly (Python), svelte-check (frontend).
+# Static checks, no writes: ruff + pyrefly (Python), eslint + prettier + svelte-check (frontend).
 lint:
     uv run ruff format --check .
     uv run ruff check .
     uv run pyrefly check
+    pnpm -C frontend run lint
     pnpm -C frontend exec svelte-check
 
-# Apply formatting and safe fixes (Python).
+# Apply formatting and safe fixes: ruff (Python), prettier + eslint (frontend).
 format:
     uv run ruff format .
     uv run ruff check --fix .
+    pnpm -C frontend run format
 
 # Run the test suite with coverage.
 test:
