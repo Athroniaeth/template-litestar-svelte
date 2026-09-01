@@ -4,6 +4,7 @@ from litestar_vite import TypeGenConfig, ViteConfig, VitePlugin
 from litestar_vite.config import PathConfig, RuntimeConfig
 
 from backend import DEV_MODE, FRONTEND_ROOT
+from backend.exceptions import AppError, app_error_handler
 from backend.routes import ApiController
 
 config = ViteConfig(
@@ -24,4 +25,8 @@ plugins = [VitePlugin(config=config), GranianPlugin(static="auto")]
 # at / by the Vite plugin). Register every controller here, not with a hardcoded prefix.
 api_router = Router(path="/api", route_handlers=[ApiController])
 
-app = Litestar(plugins=plugins, route_handlers=[api_router])
+app = Litestar(
+    plugins=plugins,
+    route_handlers=[api_router],
+    exception_handlers={AppError: app_error_handler},
+)
