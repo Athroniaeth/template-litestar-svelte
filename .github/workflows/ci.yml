@@ -1,0 +1,64 @@
+name: CI
+
+# Gitflow: validate every PR into and every push to the long-lived branches.
+# Feature/release/hotfix branches are covered via their PRs.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel superseded runs on the same ref (e.g. a new push to a PR branch).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The Litestar CLI (assets install / generate-types) must load the app to expose
+  # the Vite plugin commands; normally set via .env, which is absent in CI.
+  LITESTAR_APP: backend.app:app
+  PYTHONPATH: .
+
+jobs:
+  check:
+    name: Lint + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Install dependencies (backend + frontend)
+        run: just install
+
+      - name: Generate API types
+        run: uv run litestar assets generate-types
+
+      - name: Lint + test
+        run: just check
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t litestar-template:ci .
