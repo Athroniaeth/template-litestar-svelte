@@ -57,6 +57,9 @@ jobs:
 
   docker:
     name: Docker build
+    # main is the release branch, so the heavier image build runs only there.
+    # develop (and its PRs) stays light: the `check` job alone.
+    if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
