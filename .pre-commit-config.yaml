@@ -40,3 +40,14 @@ repos:
         entry: uv run cz check --allow-abort --commit-msg-file
         language: system
         stages: [commit-msg]
+
+  # Generic hygiene checks. No uv/Python equivalent, so pinned from upstream —
+  # the only rev pin in this file; bump deliberately.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-added-large-files
