@@ -25,10 +25,13 @@ class ProblemDetail(msgspec.Struct):
 
 def app_error_handler(request: Request, exc: AppError) -> Response[ProblemDetail]:
     """Map any AppError subclass to a problem+json response."""
+    content = ProblemDetail(
+        detail=exc.detail,
+        status=exc.status_code,
+        type=exc.__class__.__name__,
+    )
     return Response(
-        ProblemDetail(
-            status=exc.status_code, detail=exc.detail, type=exc.__class__.__name__
-        ),
+        content=content,
         status_code=exc.status_code,
         media_type="application/problem+json",
     )

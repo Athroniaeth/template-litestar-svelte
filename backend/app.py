@@ -1,4 +1,9 @@
 from litestar import Litestar, Router
+from litestar.plugins.structlog import (
+    LoggingMiddlewareConfig,
+    StructlogConfig,
+    StructlogPlugin,
+)
 from litestar_granian import GranianPlugin
 from litestar_vite import TypeGenConfig, ViteConfig, VitePlugin
 from litestar_vite.config import PathConfig, RuntimeConfig
@@ -19,7 +24,18 @@ config = ViteConfig(
     ),
     types=TypeGenConfig(generate_zod=True),
 )
-plugins = [VitePlugin(config=config), GranianPlugin(static="auto")]
+# Structured logging: pretty coloured console on a TTY (dev), JSON otherwise (prod),
+# so logs ship straight to Loki/Datadog/ELK without re-parsing. Each request/response is
+# logged with typed fields; noisy infra routes are excluded to keep logs signal.
+middleware_logging_config = LoggingMiddlewareConfig(exclude=["/schema", "/static"])
+structlog_config = StructlogConfig(middleware_logging_config=middleware_logging_config)
+structlog_plugin = StructlogPlugin(config=structlog_config)
+
+plugins = [
+    structlog_plugin,
+    VitePlugin(config=config),
+    GranianPlugin(static="auto"),
+]
 
 # All Python routes live under /api to avoid collisions with the Svelte SPA (served
 # at / by the Vite plugin). Register every controller here, not with a hardcoded prefix.
