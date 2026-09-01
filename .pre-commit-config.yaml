@@ -1,5 +1,8 @@
 # Hooks run via `uv run` so versions track pyproject.toml (no rev pin drift).
-# Runner: prek (Rust reimplementation of pre-commit). Install hook: `prek install`.
+# Runner: prek (Rust reimplementation of pre-commit). Install hooks: `prek install`.
+# Two hook types are wired below (pre-commit + commit-msg), so a single
+# `prek install` sets up both — no need to pass `-t commit-msg` by hand.
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: local
     hooks:
@@ -27,3 +30,13 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+
+      # 4. Commit message — enforce Conventional Commits (rules live in cz.toml).
+      #    Runs on the commit-msg stage; prek passes the message file as the last arg,
+      #    which `--commit-msg-file` consumes. `--allow-abort` keeps empty/aborted
+      #    commits (e.g. `git commit` with no message) from being flagged.
+      - id: commitizen
+        name: commitizen check
+        entry: uv run cz check --allow-abort --commit-msg-file
+        language: system
+        stages: [commit-msg]

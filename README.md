@@ -91,6 +91,10 @@ uv run cz commit     # rédaction guidée
 uv run cz bump       # version, tag et CHANGELOG
 ```
 
+Le format est aussi vérifié automatiquement à chaque commit : le hook `commitizen`
+(étape `commit-msg`) rejette un message non conforme. Il s'installe avec le reste
+via `prek install` (voir `default_install_hook_types` dans `.pre-commit-config.yaml`).
+
 `cz bump` lit et écrit la version dans `pyproject.toml` via uv. Tant que
 `major_version_zero` est actif, le projet ne dépasse pas `0.x`.
 
