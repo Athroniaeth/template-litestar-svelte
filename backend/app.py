@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from litestar import Litestar, get
+from litestar_granian import GranianPlugin
 from litestar_vite import ViteConfig, VitePlugin, TypeGenConfig
 from litestar_vite.config import PathConfig, RuntimeConfig
 
@@ -28,5 +29,5 @@ config=ViteConfig(
     ),
     types=TypeGenConfig(generate_zod=True),
 )
-plugins=[VitePlugin(config=config)]
+plugins=[VitePlugin(config=config), GranianPlugin(static="auto")]
 app = Litestar(plugins=plugins, route_handlers=[hello])

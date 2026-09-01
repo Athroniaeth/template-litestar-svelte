@@ -4,10 +4,11 @@ version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
     "jinja2>=3.1.6",
-    "litestar[standard]>=2.24.0",
+    "litestar>=2.24.0",
     "litestar-vite>=0.31.0",
     "markupsafe>=3.0.3",
     "python-dotenv>=1.2.3",
+    "litestar-granian>=0.16.0",
 ]
 
 [dependency-groups]
