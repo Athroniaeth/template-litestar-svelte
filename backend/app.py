@@ -25,9 +25,26 @@ config = ViteConfig(
     types=TypeGenConfig(generate_zod=True),
 )
 # Structured logging: pretty coloured console on a TTY (dev), JSON otherwise (prod),
-# so logs ship straight to Loki/Datadog/ELK without re-parsing. Each request/response is
-# logged with typed fields; noisy infra routes are excluded to keep logs signal.
-middleware_logging_config = LoggingMiddlewareConfig(exclude=["/schema", "/static"])
+# so logs ship straight to Loki/Datadog/ELK without re-parsing. Request/response bodies
+# are dropped from the logged fields — they bloat logs and can leak secrets (tokens,
+# PII); noisy infra routes are excluded too to keep logs signal.
+exclude = ["/schema", "/static", "/favicon.ico"]
+response_log_fields = ["status_code", "cookies", "headers"]
+request_log_fields = [
+    "path",
+    "method",
+    "content_type",
+    "headers",
+    "cookies",
+    "query",
+    "path_params",
+]
+
+middleware_logging_config = LoggingMiddlewareConfig(
+    exclude=exclude,
+    request_log_fields=request_log_fields,
+    response_log_fields=response_log_fields,
+)
 structlog_config = StructlogConfig(middleware_logging_config=middleware_logging_config)
 structlog_plugin = StructlogPlugin(config=structlog_config)
 
