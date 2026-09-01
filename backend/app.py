@@ -1,10 +1,10 @@
-from litestar import Litestar
+from litestar import Litestar, Router
 from litestar_granian import GranianPlugin
 from litestar_vite import TypeGenConfig, ViteConfig, VitePlugin
 from litestar_vite.config import PathConfig, RuntimeConfig
 
 from backend import DEV_MODE, FRONTEND_ROOT
-from backend.routes import api_router
+from backend.routes import ApiController
 
 config = ViteConfig(
     mode="spa",  # or "template", "htmx", "hybrid", "framework", "external"
@@ -19,4 +19,9 @@ config = ViteConfig(
     types=TypeGenConfig(generate_zod=True),
 )
 plugins = [VitePlugin(config=config), GranianPlugin(static="auto")]
+
+# All Python routes live under /api to avoid collisions with the Svelte SPA (served
+# at / by the Vite plugin). Register every controller here, not with a hardcoded prefix.
+api_router = Router(path="/api", route_handlers=[ApiController])
+
 app = Litestar(plugins=plugins, route_handlers=[api_router])
