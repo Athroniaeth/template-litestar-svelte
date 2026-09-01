@@ -18,6 +18,7 @@ dev = [
     "prek>=0.5.1",
     "pyrefly>=1.2.0",
     "pytest>=9.1.1",
+    "pytest-cov>=6.0.0",
     "ruff>=0.16.5",
 ]
 
@@ -28,8 +29,22 @@ markers = ["anyio"]
 # Add repo root to sys.path, else `pytest` fails with `ModuleNotFoundError: No module named 'backend'`
 pythonpath = ["."]
 
+# Measure coverage of the `backend` package on every run; `term-missing` prints the
+# uncovered line numbers so gaps are visible without opening an HTML report.
+addopts = ["--cov=backend", "--cov-report=term-missing"]
+
 # Silence third-party noise: rich_click 1.9.8 (pulled in by litestar) uses click APIs
 # deprecated in click 9.0. Not our code and nothing to bump, so ignore it.
 filterwarnings = [
     "ignore::DeprecationWarning:rich_click",
+]
+
+[tool.coverage.run]
+source = ["backend"]
+
+[tool.coverage.report]
+# TYPE_CHECKING blocks and the `if __name__ == "__main__"` guard never run under tests.
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
 ]
