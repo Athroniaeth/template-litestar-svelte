@@ -188,6 +188,21 @@ Swagger UI (`/schema/swagger`) affiche un bouton « Authorize » et un cadenas s
 route : le schéma de sécurité est déclaré dans `openapi.json`, donc le contrat ne
 présente pas la route comme libre d'accès.
 
+### Documentation OpenAPI
+
+`ENABLE_DOCS` (défaut `true`) commande les routes `/schema` — Swagger, Redoc,
+`openapi.json`. `compose.prod.yml` la passe à `false` : `/schema` publie l'inventaire
+complet des routes, et l'API disposant de son propre domaine sur Coolify, la masquer
+dans nginx ne suffirait pas. La coupure se fait donc dans l'application, où elle vaut
+pour tous les chemins d'accès. Mettez `ENABLE_DOCS=true` dans les variables du projet
+pour la rétablir le temps d'un diagnostic.
+
+Techniquement, `build_openapi_config` renvoie `None`, ce qui supprime le routeur
+`/schema`. Le schéma quitte alors la mémoire : `litestar assets generate-types` en a
+besoin, c'est pourquoi la recette `just types` force `ENABLE_DOCS=true`. Sans ce
+forçage, la commande n'exporterait plus rien — sans erreur — et le contrat dériverait
+sans que personne ne le voie.
+
 ## Qualité
 
 Le lint, le typage et les tests couvrent backend et frontend d'un seul point :

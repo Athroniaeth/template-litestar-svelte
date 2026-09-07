@@ -38,6 +38,10 @@ services:
     environment:
       # Vertical scaling knob: one Granian worker per core is a sane start.
       - WEB_CONCURRENCY=${WEB_CONCURRENCY:-1}
+      # Docs off by default here: /schema publishes a full route inventory, and the
+      # API has its own public domain on Coolify, so nginx cannot hide them. Set
+      # ENABLE_DOCS=true in the project variables to turn them back on temporarily.
+      - ENABLE_DOCS=${ENABLE_DOCS:-false}
       - API_KEY=${API_KEY:?}
     healthcheck:
       # No curl in the image; the venv's python is on PATH. /api/health is public on

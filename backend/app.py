@@ -11,7 +11,7 @@ from litestar_granian import GranianPlugin
 from litestar_vite import TypeGenConfig, ViteConfig, VitePlugin
 from litestar_vite.config import PathConfig, RuntimeConfig
 
-from backend import FRONTEND_ROOT, OPENAPI_SCHEMA
+from backend import DOCS_ENABLED, FRONTEND_ROOT, OPENAPI_SCHEMA
 from backend.exceptions import AppError, app_error_handler
 from backend.routes import ApiController
 from backend.security import API_KEY_HEADER, ensure_api_key_configured
@@ -76,28 +76,45 @@ plugins = [
 # at / by the Vite plugin). Register every controller here, not with a hardcoded prefix.
 api_router = Router(path="/api", route_handlers=[ApiController])
 
-# Declaring the scheme keeps openapi.json honest — a guarded route would otherwise be
-# advertised as open — and gives Swagger UI its "Authorize" box to test with a key.
-openapi_config = OpenAPIConfig(
-    title="Litestar API",
-    version="1.0.0",
-    components=Components(
-        security_schemes={
-            "APIKey": SecurityScheme(
-                type="apiKey",
-                name=API_KEY_HEADER,
-                security_scheme_in="header",
-                description="Injected server-side by nginx for the frontend; supplied directly by third-party clients.",
-            )
-        }
-    ),
-)
+
+def build_openapi_config(*, docs_enabled: bool) -> OpenAPIConfig | None:
+    """Return the OpenAPI configuration, or None to serve no documentation at all.
+
+    Returning None is what actually removes the /schema router; `enabled_endpoints`
+    would be the narrower knob but has been deprecated since Litestar 2.8. The
+    trade-off is that the schema then leaves memory, so `litestar assets
+    generate-types` needs the docs enabled — the `types` recipe forces it.
+
+    Declaring the security scheme keeps openapi.json honest — a guarded route would
+    otherwise be advertised as open — and gives Swagger UI its "Authorize" box.
+
+    Returns:
+        The configuration when docs are enabled, otherwise None.
+    """
+    if not docs_enabled:
+        return None
+
+    return OpenAPIConfig(
+        title="Litestar API",
+        version="1.0.0",
+        components=Components(
+            security_schemes={
+                "APIKey": SecurityScheme(
+                    type="apiKey",
+                    name=API_KEY_HEADER,
+                    security_scheme_in="header",
+                    description="Injected server-side by nginx for the frontend; supplied directly by third-party clients.",
+                )
+            }
+        ),
+    )
+
 
 app = Litestar(
     plugins=plugins,
     route_handlers=[api_router],
     exception_handlers={AppError: app_error_handler},
-    openapi_config=openapi_config,
+    openapi_config=build_openapi_config(docs_enabled=DOCS_ENABLED),
     # Checked at startup, not at import: the CLI (`litestar assets generate-types`)
     # loads this module without needing a key.
     on_startup=[ensure_api_key_configured],

@@ -1,5 +1,7 @@
 import pytest
+from litestar import Litestar
 from litestar.exceptions import ImproperlyConfiguredException
+from litestar.openapi.spec import Components
 from litestar.status_codes import (
     HTTP_200_OK,
     HTTP_401_UNAUTHORIZED,
@@ -7,6 +9,7 @@ from litestar.status_codes import (
 )
 from litestar.testing import AsyncTestClient, RequestFactory
 
+from backend.app import build_openapi_config
 from backend.exceptions import NotFoundError, ProblemDetail, app_error_handler
 from backend.security import (
     API_KEY_ENV_VAR,
@@ -87,3 +90,37 @@ def test_startup_check_rejects_an_empty_key(monkeypatch: pytest.MonkeyPatch):
 
 def test_startup_check_passes_with_a_key(api_key: str):
     ensure_api_key_configured()
+
+
+async def test_docs_are_served_when_enabled(client: AsyncTestClient):
+    """The default: handy in development, and what `generate-types` relies on."""
+    response = await client.get("/schema/openapi.json")
+    assert response.status_code == HTTP_200_OK
+
+
+async def test_docs_are_absent_when_disabled():
+    """No openapi_config means no /schema router at all.
+
+    Guards production: the API has its own public domain on Coolify, so hiding the
+    docs in nginx alone would leave them reachable.
+    """
+    app_without_docs = Litestar(
+        route_handlers=[],
+        openapi_config=build_openapi_config(docs_enabled=False),
+    )
+    async with AsyncTestClient(app=app_without_docs) as client:
+        for path in ("/schema", "/schema/openapi.json", "/schema/swagger"):
+            assert (await client.get(path)).status_code == HTTP_404_NOT_FOUND
+
+
+def test_build_openapi_config_returns_none_when_disabled():
+    assert build_openapi_config(docs_enabled=False) is None
+
+
+def test_build_openapi_config_declares_the_api_key_scheme():
+    config = build_openapi_config(docs_enabled=True)
+    assert config is not None
+    # `components` may also be a list in Litestar's API, hence the narrowing.
+    components = config.components
+    assert isinstance(components, Components)
+    assert "APIKey" in (components.security_schemes or {})

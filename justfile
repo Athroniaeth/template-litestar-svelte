@@ -39,9 +39,12 @@ dev-front:
 
 # Run after touching a route or a response type, then commit openapi.json.
 
+# ENABLE_DOCS is forced on: without openapi_config the schema leaves memory and the
+# command exports nothing — silently, which would let the contract drift unnoticed.
+
 # Export openapi.json from the handlers and derive the TypeScript client.
 types:
-    uv run litestar assets generate-types
+    ENABLE_DOCS=true uv run litestar assets generate-types
 
 # Static checks, no writes: ruff + pyrefly (Python), eslint + prettier + svelte-check (frontend).
 lint:
