@@ -4,6 +4,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
+    # Injected into /api/ requests server-side, so the browser never sees it.
+    # `:?` on purpose: a missing key must stop the deployment, not ship an open API.
+    environment:
+      API_KEY: ${API_KEY:?set API_KEY in .env (see .env.example)}
     ports:
       - "8000:8080"
     depends_on:
@@ -14,9 +18,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.api
-    # Vertical scaling: one Granian worker per core is a sane starting point.
     environment:
+      # Vertical scaling: one Granian worker per core is a sane starting point.
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+      # The same key the guard on /api/hello checks against.
+      API_KEY: ${API_KEY:?set API_KEY in .env (see .env.example)}
     # No `ports`: the API is reachable only by web, over the compose network.
     expose:
       - "8000"

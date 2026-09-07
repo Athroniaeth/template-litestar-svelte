@@ -3,6 +3,8 @@ from typing import Literal
 import msgspec
 from litestar import Controller, get
 
+from backend.security import require_api_key
+
 
 class Greeting(msgspec.Struct):
     message: str
@@ -17,7 +19,14 @@ class ApiController(Controller):
     not here, so every controller stays prefix-agnostic. Add shared `guards`,
     `dependencies` here later."""
 
-    @get("/hello", name="api:hello")
+    # Guarded by an API key; `health` stays open because the compose healthcheck
+    # reaches it directly, without going through nginx.
+    @get(
+        "/hello",
+        name="api:hello",
+        guards=[require_api_key],
+        security=[{"APIKey": []}],
+    )
     async def hello(self) -> Greeting:
         return Greeting(message="Hello from Litestar")
 

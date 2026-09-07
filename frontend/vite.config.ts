@@ -7,6 +7,11 @@ import tailwindcss from "@tailwindcss/vite";
 // Dev proxy target: the Litestar API started separately (`just dev-api`).
 const API_TARGET = process.env.API_URL || "http://127.0.0.1:8000";
 
+// Read by Node here, never inlined into the bundle (that would only happen with a
+// VITE_ prefix). Mirrors what nginx injects in production, so the browser holds no
+// secret in either environment.
+const API_KEY = process.env.API_KEY ?? "";
+
 export default defineConfig({
   // nginx serves the bundle at the root, not under Litestar's asset prefix, so use
   // the standard Vite base instead of the plugin's default.
@@ -27,7 +32,11 @@ export default defineConfig({
     // Same single origin as production, where nginx plays this role: client code
     // never knows the API's URL, it calls /api relatively.
     proxy: {
-      "/api": { target: API_TARGET, changeOrigin: true },
+      "/api": {
+        target: API_TARGET,
+        changeOrigin: true,
+        headers: { "X-API-Key": API_KEY },
+      },
       "/schema": { target: API_TARGET, changeOrigin: true },
     },
   },

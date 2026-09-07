@@ -2,6 +2,10 @@
 # Recipes mirror the pre-commit hooks and are the single source the CI calls.
 # Install just: `uv tool install rust-just` (or your package manager).
 
+# Load .env for every recipe: the API key must reach both the Litestar guard and the
+# Vite dev proxy, and Vite only exposes VITE_-prefixed variables on its own.
+set dotenv-load := true
+
 # List available recipes.
 default:
     @just --list

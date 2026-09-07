@@ -125,6 +125,40 @@ WEB_CONCURRENCY=4 docker compose up -d    # 4 workers Granian
 Passer à l'horizontal ensuite ne demande que des répliques d'`api` derrière nginx —
 à condition de n'avoir mis aucun état en mémoire dans le processus.
 
+## Clé d'API
+
+`/api/hello` est protégée par une clé, `/api/health` reste publique (le healthcheck de
+compose l'atteint directement, sans proxy). Le garde vit dans `backend/security.py` et
+s'accroche au handler par `guards=[require_api_key]`.
+
+Le point important : **la clé n'entre jamais dans le navigateur**. nginx l'ajoute en
+`proxy_set_header` côté serveur, et le proxy Vite fait de même en développement. Le
+frontend appelle donc `/api/hello` sans rien présenter — inspectez les requêtes dans
+les DevTools, il n'y a pas d'en-tête `X-API-Key`.
+
+C'est délibéré : une variable `VITE_*` est inlinée en clair dans le bundle, donc une
+clé embarquée dans un SPA est une clé publique.
+
+```bash
+API_KEY=… docker compose up -d          # ou API_KEY dans le .env
+curl http://127.0.0.1:8000/api/hello    # 200, via nginx qui injecte la clé
+curl -H "X-API-Key: …" http://api:8000/api/hello   # 200, client tiers
+```
+
+Sans `API_KEY`, `docker compose up` s'arrête au lieu de démarrer une API ouverte, et
+le garde refuse tout : la configuration échoue en fermé, jamais en ouvert.
+
+Ce que cela protège, et ce que cela ne protège pas : la route est réservée aux appels
+passant par votre nginx ou porteurs de la clé, ce qui permet d'exposer un domaine
+d'API à des clients tiers. Ce n'est **pas** de l'authentification utilisateur — tout
+visiteur du site atteint `hello` à travers le proxy. Pour cloisonner des données par
+utilisateur, il faut une session (un cookie `HttpOnly` fonctionne sans CORS ici,
+grâce à l'origine unique).
+
+Swagger UI (`/schema/swagger`) affiche un bouton « Authorize » et un cadenas sur la
+route : le schéma de sécurité est déclaré dans `openapi.json`, donc le contrat ne
+présente pas la route comme libre d'accès.
+
 ## Qualité
 
 Le lint, le typage et les tests couvrent backend et frontend d'un seul point :

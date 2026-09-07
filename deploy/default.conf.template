@@ -1,6 +1,10 @@
 # Single origin: nginx serves the Svelte bundle and proxies /api to Litestar. The
 # browser only ever sees one host, so no CORS and no API URL baked into the bundle.
 # Frontend and API remain two containers, sized independently.
+#
+# A template, not a plain conf: the nginx entrypoint runs envsubst over
+# /etc/nginx/templates at startup to inject ${API_KEY}. NGINX_ENVSUBST_FILTER limits
+# the substitution to that one name, so nginx's own $uri/$host survive untouched.
 server {
     # 8080 rather than 80: the base image runs unprivileged.
     listen 8080;
@@ -23,6 +27,11 @@ server {
     }
 
     location /api/ {
+        # The API key is added here, server-side, so it never reaches the browser:
+        # the bundle holds no secret. proxy_set_header also overwrites any header a
+        # client sent, so this value is the only one the API ever sees from us.
+        proxy_set_header X-API-Key "${API_KEY}";
+
         proxy_pass http://api:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;

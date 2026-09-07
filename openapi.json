@@ -25,6 +25,14 @@
         "title": "HealthCheck",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "APIKey": {
+        "description": "Injected server-side by nginx for the frontend; supplied directly by third-party clients.",
+        "in": "header",
+        "name": "X-API-Key",
+        "type": "apiKey"
+      }
     }
   },
   "info": {
@@ -70,6 +78,11 @@
             "headers": {}
           }
         },
+        "security": [
+          {
+            "APIKey": []
+          }
+        ],
         "summary": "Hello"
       }
     }

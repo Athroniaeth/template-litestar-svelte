@@ -1,5 +1,7 @@
 from litestar import Litestar, Router
 from litestar.data_extractors import RequestExtractorField, ResponseExtractorField
+from litestar.openapi import OpenAPIConfig
+from litestar.openapi.spec import Components, SecurityScheme
 from litestar.plugins.structlog import (
     LoggingMiddlewareConfig,
     StructlogConfig,
@@ -12,6 +14,7 @@ from litestar_vite.config import PathConfig, RuntimeConfig
 from backend import FRONTEND_ROOT, OPENAPI_SCHEMA
 from backend.exceptions import AppError, app_error_handler
 from backend.routes import ApiController
+from backend.security import API_KEY_HEADER
 
 # nginx serves the frontend, not Litestar: `enabled=False` makes the plugin inert at
 # runtime (no HTML catch-all, no static files, no lifespan, no Vite process). The
@@ -73,8 +76,26 @@ plugins = [
 # at / by the Vite plugin). Register every controller here, not with a hardcoded prefix.
 api_router = Router(path="/api", route_handlers=[ApiController])
 
+# Declaring the scheme keeps openapi.json honest — a guarded route would otherwise be
+# advertised as open — and gives Swagger UI its "Authorize" box to test with a key.
+openapi_config = OpenAPIConfig(
+    title="Litestar API",
+    version="1.0.0",
+    components=Components(
+        security_schemes={
+            "APIKey": SecurityScheme(
+                type="apiKey",
+                name=API_KEY_HEADER,
+                security_scheme_in="header",
+                description="Injected server-side by nginx for the frontend; supplied directly by third-party clients.",
+            )
+        }
+    ),
+)
+
 app = Litestar(
     plugins=plugins,
     route_handlers=[api_router],
     exception_handlers={AppError: app_error_handler},
+    openapi_config=openapi_config,
 )
