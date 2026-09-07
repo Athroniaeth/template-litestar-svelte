@@ -112,6 +112,25 @@ L'app répond sur http://127.0.0.1:8000, servie par nginx. L'API n'est pas expos
 sur l'hôte : seul `web` l'atteint, par le réseau interne de compose. Le service
 `web` attend que le healthcheck de `api` passe avant de démarrer.
 
+### Coolify
+
+`compose.prod.yml` est la variante pour un déploiement Coolify. Trois différences avec
+`compose.yml`, toutes dues au fait de tourner derrière le Traefik de Coolify :
+
+- **aucun `ports:`** — publier un port contournerait le proxy et exposerait le
+  conteneur directement sur l'hôte ; Traefik joint `web` par le réseau du projet ;
+- **`SERVICE_FQDN_WEB_8080`** — variable magique, volontairement sans valeur : Coolify
+  génère un domaine, l'attache au service `web` et le route vers le port 8080 ;
+- **`restart: unless-stopped`**, et `API_KEY` déclarée avec `:?` donc requise dans
+  l'interface — une valeur vide bloque le déploiement.
+
+`api` n'a ni domaine ni port publié : Coolify garde ces services privés au réseau du
+projet, joignables seulement en `http://api:8000`, ce que fait nginx. Ne lui donnez un
+domaine que pour ouvrir l'API à des tiers, et lisez la section sur la clé d'API avant.
+
+Coolify considère ce fichier comme la source de vérité : déclarez les variables ici,
+pas seulement dans l'interface.
+
 ### Dimensionner
 
 L'API porte la charge : le frontend est un bundle statique qu'un visiteur télécharge
