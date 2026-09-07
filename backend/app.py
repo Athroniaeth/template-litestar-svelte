@@ -1,5 +1,6 @@
 from litestar import Litestar, Router
 from litestar.data_extractors import RequestExtractorField, ResponseExtractorField
+from litestar.middleware.rate_limit import DurationUnit, RateLimitConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.spec import Components, SecurityScheme
 from litestar.plugins.structlog import (
@@ -14,7 +15,7 @@ from litestar_vite.config import PathConfig, RuntimeConfig
 from backend import DOCS_ENABLED, FRONTEND_ROOT, OPENAPI_SCHEMA
 from backend.exceptions import AppError, app_error_handler
 from backend.routes import ApiController
-from backend.security import API_KEY_HEADER, ensure_api_key_configured
+from backend.security import API_KEY_HEADER, ensure_api_key_configured, identify_client
 
 # nginx serves the frontend, not Litestar: `enabled=False` makes the plugin inert at
 # runtime (no HTML catch-all, no static files, no lifespan, no Vite process). The
@@ -112,9 +113,39 @@ def build_openapi_config(*, docs_enabled: bool) -> OpenAPIConfig | None:
     )
 
 
+def build_rate_limit_config(
+    rate_limit: tuple[DurationUnit, int] = ("minute", 120),
+) -> RateLimitConfig:
+    """Return the rate limit configuration, counted per client address.
+
+    The API sits on a public domain and the access logs show it being swept
+    continuously, so an unbounded endpoint is an open invitation.
+
+    Two limits worth knowing. The counter lives in the default in-memory store, so
+    each Granian worker keeps its own: with WEB_CONCURRENCY=4 the effective quota is
+    four times this value. Making it exact — and surviving several API replicas —
+    needs a shared store such as Redis. And /api/health is exempt, since the compose
+    healthcheck calls it every 10 seconds and must never be throttled.
+
+    Args:
+        rate_limit: Duration unit and number of requests allowed per client.
+
+    Returns:
+        The configured rate limit.
+    """
+    return RateLimitConfig(
+        rate_limit=rate_limit,
+        exclude=["/api/health"],
+        identifier_for_request=identify_client,
+    )
+
+
+rate_limit_config = build_rate_limit_config()
+
 app = Litestar(
     plugins=plugins,
     route_handlers=[api_router],
+    middleware=[rate_limit_config.middleware],
     exception_handlers={AppError: app_error_handler},
     openapi_config=build_openapi_config(docs_enabled=DOCS_ENABLED),
     # Checked at startup, not at import: the CLI (`litestar assets generate-types`)

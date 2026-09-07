@@ -18,6 +18,9 @@ FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 # from nginx's own variables, so only ${API_KEY} is replaced.
 ENV NGINX_ENVSUBST_FILTER="^API_KEY$"
 COPY deploy/default.conf.template /etc/nginx/templates/default.conf.template
+# Outside templates/ on purpose: it holds no variable to substitute, and the server
+# config includes it by absolute path.
+COPY deploy/security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 
 EXPOSE 8080

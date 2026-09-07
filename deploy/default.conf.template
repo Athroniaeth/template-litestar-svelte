@@ -47,6 +47,8 @@ server {
 
     # Vite hashe le nom de chaque asset, donc le contenu d'une URL ne change jamais.
     location /assets/ {
+        include /etc/nginx/security-headers.conf;
+
         # One header only: adding `expires` would emit a second, duplicate one.
         add_header Cache-Control "public, max-age=31536000, immutable" always;
         access_log off;
@@ -87,6 +89,8 @@ server {
     # `no-cache` on this HTML, else a browser would keep the old hashed asset names
     # and never see a deployment.
     location / {
+        include /etc/nginx/security-headers.conf;
+
         try_files $uri /index.html;
         add_header Cache-Control "no-cache" always;
     }

@@ -1,12 +1,13 @@
 import os
 import secrets
 
-from litestar.connection import ASGIConnection
+from litestar.connection import ASGIConnection, Request
 from litestar.exceptions import ImproperlyConfiguredException, NotAuthorizedException
 from litestar.handlers.base import BaseRouteHandler
 
 API_KEY_HEADER = "X-API-Key"
 API_KEY_ENV_VAR = "API_KEY"
+REAL_IP_HEADER = "X-Real-IP"
 
 
 def require_api_key(connection: ASGIConnection, _: BaseRouteHandler) -> None:
@@ -57,3 +58,20 @@ def ensure_api_key_configured() -> None:
             f"routes has nothing to compare against and would reject every call."
         )
         raise ImproperlyConfiguredException(msg)
+
+
+def identify_client(request: Request) -> str:
+    """Return the address a rate limit should be counted against.
+
+    Litestar's default reads `request.client`, which behind nginx is the proxy for
+    every visitor alike — one shared quota rather than one per client. nginx sets
+    X-Real-IP from the address `real_ip` recovered, and `proxy_set_header` overwrites
+    whatever the caller sent, so the header cannot be forged to dodge the limit.
+
+    Returns:
+        The client address, falling back to the connection when no proxy is in front.
+    """
+    forwarded = request.headers.get(REAL_IP_HEADER)
+    if forwarded:
+        return forwarded
+    return request.client.host if request.client else "unknown"

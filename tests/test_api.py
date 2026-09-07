@@ -1,20 +1,22 @@
 import pytest
-from litestar import Litestar
+from litestar import Litestar, get
 from litestar.exceptions import ImproperlyConfiguredException
 from litestar.openapi.spec import Components
 from litestar.status_codes import (
     HTTP_200_OK,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
+    HTTP_429_TOO_MANY_REQUESTS,
 )
 from litestar.testing import AsyncTestClient, RequestFactory
 
-from backend.app import build_openapi_config
+from backend.app import build_openapi_config, build_rate_limit_config
 from backend.exceptions import NotFoundError, ProblemDetail, app_error_handler
 from backend.security import (
     API_KEY_ENV_VAR,
     API_KEY_HEADER,
     ensure_api_key_configured,
+    identify_client,
 )
 
 
@@ -124,3 +126,49 @@ def test_build_openapi_config_declares_the_api_key_scheme():
     components = config.components
     assert isinstance(components, Components)
     assert "APIKey" in (components.security_schemes or {})
+
+
+def test_client_identifier_uses_the_proxy_header():
+    """Behind nginx every connection comes from the proxy, so request.client is the
+    same address for everyone — one shared quota instead of one per visitor.
+
+    X-Real-IP is trustworthy here because nginx sets it with proxy_set_header, which
+    overwrites whatever a caller sent.
+    """
+    request = RequestFactory().get("/", headers={"X-Real-IP": "203.0.113.42"})
+    assert identify_client(request) == "203.0.113.42"
+
+
+def test_client_identifier_falls_back_to_the_connection():
+    """Direct hits, with no proxy in front."""
+    request = RequestFactory().get("/")
+    assert request.client is not None
+    assert identify_client(request) == request.client.host
+
+
+def test_rate_limit_spares_the_healthcheck():
+    """The compose healthcheck must never be throttled."""
+    config = build_rate_limit_config()
+    assert config.exclude is not None
+    assert "/api/health" in config.exclude
+
+
+async def test_rate_limit_answers_429_beyond_the_quota():
+    @get("/ping")
+    async def ping() -> str:
+        return "pong"
+
+    config = build_rate_limit_config(rate_limit=("minute", 2))
+    limited_app = Litestar(route_handlers=[ping], middleware=[config.middleware])
+    async with AsyncTestClient(app=limited_app) as limited_client:
+        assert (await limited_client.get("/ping")).status_code == HTTP_200_OK
+        assert (await limited_client.get("/ping")).status_code == HTTP_200_OK
+        response = await limited_client.get("/ping")
+        assert response.status_code == HTTP_429_TOO_MANY_REQUESTS
+
+
+async def test_rate_limit_is_wired_into_the_app(client: AsyncTestClient, api_key: str):
+    """The quota headers prove the middleware is active without consuming it."""
+    response = await client.get("/api/hello", headers={API_KEY_HEADER: api_key})
+    assert response.status_code == HTTP_200_OK
+    assert "RateLimit-Limit" in response.headers

@@ -211,6 +211,31 @@ besoin, c'est pourquoi la recette `just types` force `ENABLE_DOCS=true`. Sans ce
 forçage, la commande n'exporterait plus rien — sans erreur — et le contrat dériverait
 sans que personne ne le voie.
 
+## Durcissement HTTP
+
+nginx pose quatre en-têtes sur les réponses du frontend (`deploy/security-headers.conf`) :
+`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, une `Referrer-Policy`
+stricte et une `Content-Security-Policy` en `'self'`. Le bundle est entièrement
+auto-hébergé — pas de CDN, pas de script inline, pas de `eval` — donc la CSP n'a besoin
+d'aucun `unsafe-inline`, et `connect-src 'self'` suffit pour appeler `/api` grâce à
+l'origine unique.
+
+Ce fichier est inclus dans chaque `location` plutôt que déclaré une fois sur le bloc
+`server` : nginx n'hérite pas des `add_header` dans un bloc enfant qui en déclare
+lui-même, et `/assets/` en pose un pour le cache — il perdrait donc silencieusement
+tous les autres. `/api` et `/schema` en sont exclus : une CSP ne concerne pas une
+réponse JSON, et Swagger UI a besoin de styles inline.
+
+L'API applique un quota de 120 requêtes par minute et par client
+(`build_rate_limit_config`), avec `/api/health` exempté pour ne jamais gêner le
+healthcheck. Le comptage n'utilise pas le client de la connexion — derrière nginx, ce
+serait le proxy pour tout le monde, donc un quota partagé — mais l'en-tête `X-Real-IP`,
+que nginx écrase et qu'un appelant ne peut donc pas forger.
+
+À savoir : le compteur vit dans le magasin en mémoire, propre à chaque worker. Avec
+`WEB_CONCURRENCY=4`, le quota effectif est donc quadruple. Le rendre exact, et le faire
+survivre à plusieurs répliques d'API, demande un magasin partagé comme Redis.
+
 ## Qualité
 
 Le lint, le typage et les tests couvrent backend et frontend d'un seul point :
