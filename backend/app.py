@@ -37,10 +37,12 @@ config = ViteConfig(
 # Structured logging: pretty coloured console on a TTY (dev), JSON otherwise (prod),
 # so logs ship straight to Loki/Datadog/ELK without re-parsing. Request/response bodies
 # are dropped from the logged fields — they bloat logs and can leak secrets (tokens,
-# PII); noisy infra routes are excluded too to keep logs signal.
+# PII); noisy infra routes are excluded too to keep logs signal. /api/health is one of
+# them: the compose healthcheck hits it every 10s, some 8600 lines a day that would
+# bury the real traffic.
 # Annotated with the library's Literals: a bare `list[str]` would let a misspelled
 # field through with nothing flagging it before runtime.
-exclude = ["/schema", "/favicon.ico"]
+exclude = ["/schema", "/favicon.ico", "/api/health"]
 response_log_fields: list[ResponseExtractorField] = [
     "status_code",
     "cookies",

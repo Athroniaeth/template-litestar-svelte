@@ -128,6 +128,14 @@ sur l'hôte : seul `web` l'atteint, par le réseau interne de compose. Le servic
 projet, joignables seulement en `http://api:8000`, ce que fait nginx. Ne lui donnez un
 domaine que pour ouvrir l'API à des tiers, et lisez la section sur la clé d'API avant.
 
+nginx préserve les en-têtes `X-Forwarded-*` posés par le proxy amont au lieu de les
+écraser : Traefik termine le TLS et parle à nginx en clair, donc transmettre `$scheme`
+ferait croire à l'application que le visiteur n'est pas en HTTPS — de quoi casser les
+cookies `Secure` et les redirections absolues. Sans proxy devant, en local, la valeur
+retombe sur `$scheme`. Le module `real_ip` récupère par ailleurs l'adresse réelle du
+client, en ne faisant confiance qu'aux plages privées : `X-Forwarded-For` est contrôlé
+par l'appelant et ne doit jamais être cru s'il arrive directement d'Internet.
+
 Coolify considère ce fichier comme la source de vérité : déclarez les variables ici,
 pas seulement dans l'interface.
 
