@@ -286,5 +286,9 @@ et les appels échouent — le frontend reste développable seul.
 Le dépôt suit [Gitflow](https://nvie.com/posts/a-successful-git-branching-model/) :
 `main` (production, taguée), `develop` (intégration), et des branches `feature/*`,
 `release/*`, `hotfix/*`. La CI (`.github/workflows/ci.yml`) valide le contrat, le lint
-et les tests sur `main` et `develop` ; le build des deux images Docker ne tourne que
-sur `main`, la branche de release, pour garder `develop` léger.
+et les tests sur `main` et `develop`.
+
+Elle ne construit pas les images : elles ne sont poussées vers aucun registre, et la
+plateforme de déploiement les rebâtit depuis le dépôt — un build en CI ne ferait que
+dupliquer, quelques minutes plus tôt, un échec qui apparaîtrait de toute façon au
+déploiement. Pour les vérifier en local : `docker compose build`.
