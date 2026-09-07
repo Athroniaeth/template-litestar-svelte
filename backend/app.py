@@ -1,4 +1,5 @@
 from litestar import Litestar, Router
+from litestar.data_extractors import RequestExtractorField, ResponseExtractorField
 from litestar.plugins.structlog import (
     LoggingMiddlewareConfig,
     StructlogConfig,
@@ -34,9 +35,15 @@ config = ViteConfig(
 # so logs ship straight to Loki/Datadog/ELK without re-parsing. Request/response bodies
 # are dropped from the logged fields — they bloat logs and can leak secrets (tokens,
 # PII); noisy infra routes are excluded too to keep logs signal.
+# Annotated with the library's Literals: a bare `list[str]` would let a misspelled
+# field through with nothing flagging it before runtime.
 exclude = ["/schema", "/favicon.ico"]
-response_log_fields = ["status_code", "cookies", "headers"]
-request_log_fields = [
+response_log_fields: list[ResponseExtractorField] = [
+    "status_code",
+    "cookies",
+    "headers",
+]
+request_log_fields: list[RequestExtractorField] = [
     "path",
     "method",
     "content_type",

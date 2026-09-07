@@ -48,3 +48,10 @@ exclude_also = [
     "if TYPE_CHECKING:",
     "if __name__ == .__main__.:",
 ]
+
+# Without this section pyrefly falls back to the `basic` preset, covers no project
+# file and reports "0 errors" having checked nothing. Listing the sources is what
+# makes the type-checking half of `just lint` worth anything. `pyrefly dump-config`
+# prints the files actually covered.
+[tool.pyrefly]
+project-includes = ["backend", "tests"]
