@@ -49,7 +49,10 @@ lint:
     uv run ruff check .
     uv run pyrefly check
     pnpm -C frontend run lint
-    pnpm -C frontend exec svelte-check
+    # svelte-check resolves vite.config.ts to get the preprocessor, and the litestar
+    # plugin refuses to configure a dev server when CI=true. Nothing is served here —
+    # only the config is read — so the check is bypassed rather than worked around.
+    LITESTAR_BYPASS_ENV_CHECK=1 pnpm -C frontend exec svelte-check
 
 # Apply formatting and safe fixes: ruff (Python), prettier + eslint (frontend).
 format:
