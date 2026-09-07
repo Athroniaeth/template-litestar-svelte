@@ -1,4 +1,5 @@
 import pytest
+from litestar.exceptions import ImproperlyConfiguredException
 from litestar.status_codes import (
     HTTP_200_OK,
     HTTP_401_UNAUTHORIZED,
@@ -7,7 +8,11 @@ from litestar.status_codes import (
 from litestar.testing import AsyncTestClient, RequestFactory
 
 from backend.exceptions import NotFoundError, ProblemDetail, app_error_handler
-from backend.security import API_KEY_ENV_VAR, API_KEY_HEADER
+from backend.security import (
+    API_KEY_ENV_VAR,
+    API_KEY_HEADER,
+    ensure_api_key_configured,
+)
 
 
 async def test_health_check(client: AsyncTestClient):
@@ -24,14 +29,6 @@ async def test_root_is_not_served_by_the_api(client: AsyncTestClient):
     """
     response = await client.get("/")
     assert response.status_code == HTTP_404_NOT_FOUND
-
-
-@pytest.fixture
-def api_key(monkeypatch: pytest.MonkeyPatch) -> str:
-    """Configure a known API key for the duration of a test."""
-    key = "test-api-key"
-    monkeypatch.setenv(API_KEY_ENV_VAR, key)
-    return key
 
 
 async def test_hello_accepts_the_configured_key(client: AsyncTestClient, api_key: str):
@@ -72,3 +69,21 @@ def test_app_error_handler_maps_to_problem_detail():
     assert response.content == ProblemDetail(
         status=HTTP_404_NOT_FOUND, detail="Resource not found", type="NotFoundError"
     )
+
+
+def test_startup_check_rejects_a_missing_key(monkeypatch: pytest.MonkeyPatch):
+    """Fail fast: a deployment without a key must break loudly, not answer 401s."""
+    monkeypatch.delenv(API_KEY_ENV_VAR, raising=False)
+    with pytest.raises(ImproperlyConfiguredException, match=API_KEY_ENV_VAR):
+        ensure_api_key_configured()
+
+
+def test_startup_check_rejects_an_empty_key(monkeypatch: pytest.MonkeyPatch):
+    """An empty value is the Coolify case: nginx then drops the header entirely."""
+    monkeypatch.setenv(API_KEY_ENV_VAR, "")
+    with pytest.raises(ImproperlyConfiguredException, match=API_KEY_ENV_VAR):
+        ensure_api_key_configured()
+
+
+def test_startup_check_passes_with_a_key(api_key: str):
+    ensure_api_key_configured()

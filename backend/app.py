@@ -14,7 +14,7 @@ from litestar_vite.config import PathConfig, RuntimeConfig
 from backend import FRONTEND_ROOT, OPENAPI_SCHEMA
 from backend.exceptions import AppError, app_error_handler
 from backend.routes import ApiController
-from backend.security import API_KEY_HEADER
+from backend.security import API_KEY_HEADER, ensure_api_key_configured
 
 # nginx serves the frontend, not Litestar: `enabled=False` makes the plugin inert at
 # runtime (no HTML catch-all, no static files, no lifespan, no Vite process). The
@@ -98,4 +98,7 @@ app = Litestar(
     route_handlers=[api_router],
     exception_handlers={AppError: app_error_handler},
     openapi_config=openapi_config,
+    # Checked at startup, not at import: the CLI (`litestar assets generate-types`)
+    # loads this module without needing a key.
+    on_startup=[ensure_api_key_configured],
 )

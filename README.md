@@ -164,8 +164,18 @@ curl http://127.0.0.1:8000/api/hello    # 200, via nginx qui injecte la clé
 curl -H "X-API-Key: …" http://api:8000/api/hello   # 200, client tiers
 ```
 
-Sans `API_KEY`, `docker compose up` s'arrête au lieu de démarrer une API ouverte, et
-le garde refuse tout : la configuration échoue en fermé, jamais en ouvert.
+Sans `API_KEY`, rien ne démarre : `docker compose up` s'arrête à l'interpolation, et
+l'application elle-même refuse de démarrer (`ensure_api_key_configured`, appelée par
+`on_startup`). Le conteneur sort en code 1 avec la cause dans les logs, donc il ne
+devient jamais *healthy* et `depends_on: service_healthy` garde le frontend éteint :
+le déploiement signale l'échec au lieu de servir une application cassée.
+
+Ce garde-fou existe parce que l'inverse a été observé : sur Coolify, `${API_KEY:?}`
+ne bloque pas le déploiement comme le fait `docker compose` seul. La variable était
+vide, nginx a alors **supprimé** l'en-tête — il ne transmet pas un en-tête dont la
+valeur est vide — et l'API répondait 401 à chaque appel sans que rien n'indique
+pourquoi. La configuration échoue en fermé, jamais en ouvert, et désormais elle
+échoue bruyamment.
 
 Ce que cela protège, et ce que cela ne protège pas : la route est réservée aux appels
 passant par votre nginx ou porteurs de la clé, ce qui permet d'exposer un domaine

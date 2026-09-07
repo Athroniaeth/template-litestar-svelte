@@ -2,7 +2,7 @@ import os
 import secrets
 
 from litestar.connection import ASGIConnection
-from litestar.exceptions import NotAuthorizedException
+from litestar.exceptions import ImproperlyConfiguredException, NotAuthorizedException
 from litestar.handlers.base import BaseRouteHandler
 
 API_KEY_HEADER = "X-API-Key"
@@ -31,3 +31,29 @@ def require_api_key(connection: ASGIConnection, _: BaseRouteHandler) -> None:
     # compare_digest keeps the comparison constant-time, out of reach of timing attacks.
     if not expected or not secrets.compare_digest(provided, expected):
         raise NotAuthorizedException(detail="Invalid or missing API key")
+
+
+def ensure_api_key_configured() -> None:
+    """Refuse to start when the API key is missing, instead of failing silently.
+
+    Without this check the app starts happily and answers 401 to every guarded call:
+    the frontend looks broken with nothing pointing at the cause. Two things make that
+    diagnosis harder than it should be — `${API_KEY:?}` does not block a Coolify
+    deployment the way it blocks plain `docker compose`, and nginx drops a header whose
+    value is empty rather than sending a blank one, so the API cannot tell a
+    misconfigured proxy from an anonymous caller.
+
+    Failing at startup also propagates: the container never becomes healthy, so
+    `depends_on: service_healthy` keeps the frontend down and the deployment reports
+    the failure instead of serving a broken app.
+
+    Raises:
+        ImproperlyConfiguredException: If the key is unset or empty.
+    """
+    if not os.getenv(API_KEY_ENV_VAR):
+        msg = (
+            f"{API_KEY_ENV_VAR} is unset or empty. Set it in the environment "
+            f"(.env locally, project variables on Coolify) — the guard on the API "
+            f"routes has nothing to compare against and would reject every call."
+        )
+        raise ImproperlyConfiguredException(msg)
