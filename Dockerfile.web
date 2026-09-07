@@ -1,9 +1,9 @@
-# Image du frontend : bundle Vite servi par nginx. Aucun Python — les types TypeScript
-# se dérivent de openapi.json, versionné à la racine du dépôt.
+# Frontend image: Vite bundle served by nginx. No Python — the TypeScript types are
+# derived from openapi.json, versioned at the repo root.
 FROM node:22-slim AS builder
 
 WORKDIR /app
-# Le manifeste et le lockfile seuls d'abord, pour garder l'installation en cache.
+# Manifest and lockfile alone first, to keep the install cached.
 COPY frontend/package.json frontend/pnpm-lock.yaml ./frontend/
 RUN corepack enable && pnpm -C frontend install --frozen-lockfile
 
@@ -11,7 +11,7 @@ COPY openapi.json ./openapi.json
 COPY frontend ./frontend
 RUN pnpm -C frontend generate-types && pnpm -C frontend build
 
-# Image nginx sans privilèges : tourne en utilisateur `nginx` et écoute sur 8080.
+# Unprivileged nginx image: runs as the `nginx` user and listens on 8080.
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf

@@ -165,8 +165,8 @@ cython_debug/
 # Keep the build context small and force clean, reproducible artifacts inside
 # the image. Regenerated during the build: node_modules (pnpm install),
 # frontend/dist + frontend/src/generated (pnpm generate-types && pnpm build).
-# openapi.json, lui, est versionné et copié tel quel : c'est le contrat d'entrée
-# du build frontend, qui n'a donc pas besoin de Python.
+# openapi.json, by contrast, is versioned and copied as-is: it is the input contract
+# of the frontend build, which therefore needs no Python.
 .git
 
 # Node deps and generated frontend artifacts

@@ -4,28 +4,28 @@ import litestar from "litestar-vite-plugin";
 
 import tailwindcss from "@tailwindcss/vite";
 
-// Cible du proxy de dev : l'API Litestar lancée à part (`just dev-api`).
+// Dev proxy target: the Litestar API started separately (`just dev-api`).
 const API_TARGET = process.env.API_URL || "http://127.0.0.1:8000";
 
 export default defineConfig({
-  // Le bundle est servi à la racine par nginx, pas sous le préfixe d'assets de
-  // Litestar : on reprend la base Vite standard au lieu du défaut du plugin.
+  // nginx serves the bundle at the root, not under Litestar's asset prefix, so use
+  // the standard Vite base instead of the plugin's default.
   base: "/",
-  // Assets copiés tels quels (favicon, robots.txt). Le plugin le désactive par
-  // défaut, ce qui ferait disparaître silencieusement tout fichier déposé là.
+  // Assets copied verbatim (favicon, robots.txt). The plugin disables this by
+  // default, which would silently drop anything dropped in there.
   publicDir: "public",
   build: {
     outDir: "dist",
-    // index.html comme entrée, pour que Vite émette un HTML complet avec les URLs
-    // hashées. Avec les entrées du plugin (src/main.ts), le build ne produit qu'un
-    // manifeste, à charge du backend de réécrire le HTML — ce qu'il ne fait plus.
+    // index.html as the entry, so Vite emits complete HTML with hashed URLs. With
+    // the plugin's entries (src/main.ts) the build only produces a manifest, leaving
+    // the backend to rewrite the HTML — which it no longer does.
     rolldownOptions: { input: "index.html" },
   },
   server: {
     host: "0.0.0.0",
     port: Number(process.env.VITE_PORT || "5173"),
-    // Même origine qu'en production, où nginx joue ce rôle : le code client ne
-    // connaît jamais l'URL de l'API, il appelle /api en relatif.
+    // Same single origin as production, where nginx plays this role: client code
+    // never knows the API's URL, it calls /api relatively.
     proxy: {
       "/api": { target: API_TARGET, changeOrigin: true },
       "/schema": { target: API_TARGET, changeOrigin: true },
@@ -35,7 +35,7 @@ export default defineConfig({
     tailwindcss(),
 
     svelte(),
-    // Conservé pour la seule génération de types ; il ne sert plus le frontend.
+    // Kept for type generation only; it no longer serves the frontend.
     litestar({
       input: ["src/main.ts", "src/tailwind.css"],
 

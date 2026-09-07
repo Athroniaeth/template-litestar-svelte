@@ -1,5 +1,5 @@
 services:
-  # Le point d'entrée public : sert le bundle et proxifie /api vers l'API.
+  # The public entrypoint: serves the bundle and proxies /api to the API.
   web:
     build:
       context: .
@@ -14,10 +14,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.api
-    # Dimensionnement vertical : un worker Granian par cœur est un bon point de départ.
+    # Vertical scaling: one Granian worker per core is a sane starting point.
     environment:
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
-    # Pas de `ports` : l'API n'est joignable que par web, à travers le réseau compose.
+    # No `ports`: the API is reachable only by web, over the compose network.
     expose:
       - "8000"
     healthcheck:

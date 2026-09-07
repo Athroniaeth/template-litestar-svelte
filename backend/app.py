@@ -13,11 +13,11 @@ from backend import FRONTEND_ROOT, OPENAPI_SCHEMA
 from backend.exceptions import AppError, app_error_handler
 from backend.routes import ApiController
 
-# Le frontend est servi par nginx, pas par Litestar : `enabled=False` rend le plugin
-# inerte au runtime (aucun catch-all HTML, aucun fichier statique, aucun lifespan, pas
-# de process Vite). Les commandes `litestar assets *` restent disponibles — `on_cli_init`
-# n'est pas court-circuité — donc le plugin ne sert plus qu'à générer les types.
-# `mode` et `bundle_dir` ne pilotent que ce codegen et le build Vite.
+# nginx serves the frontend, not Litestar: `enabled=False` makes the plugin inert at
+# runtime (no HTML catch-all, no static files, no lifespan, no Vite process). The
+# `litestar assets *` commands still work — `on_cli_init` is not short-circuited — so
+# the plugin is now only a type generator. `mode` and `bundle_dir` drive that codegen
+# and the Vite build, nothing else.
 config = ViteConfig(
     enabled=False,
     mode="spa",
@@ -27,8 +27,8 @@ config = ViteConfig(
         resource_dir=FRONTEND_ROOT / "src",
         bundle_dir=FRONTEND_ROOT / "dist",
     ),
-    # openapi.json sort à la racine du dépôt pour être versionné ; le reste de
-    # src/generated/ est dérivé et reste ignoré par git.
+    # openapi.json lands at the repo root to be versioned; the rest of
+    # src/generated/ is derived and stays git-ignored.
     types=TypeGenConfig(generate_zod=True, openapi_path=OPENAPI_SCHEMA),
 )
 # Structured logging: pretty coloured console on a TTY (dev), JSON otherwise (prod),
@@ -61,8 +61,8 @@ middleware_logging_config = LoggingMiddlewareConfig(
 structlog_config = StructlogConfig(middleware_logging_config=middleware_logging_config)
 structlog_plugin = StructlogPlugin(config=structlog_config)
 
-# `static="auto"` n'aurait plus rien à consommer : l'API ne sert aucun fichier.
-# Le nombre de workers vient de WEB_CONCURRENCY, lu nativement par la CLI Granian.
+# `static="auto"` would have nothing left to consume: the API serves no files.
+# Worker count comes from WEB_CONCURRENCY, read natively by the Granian CLI.
 plugins = [
     structlog_plugin,
     VitePlugin(config=config),
