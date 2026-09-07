@@ -10,6 +10,16 @@ async def test_health_check(client: AsyncTestClient):
     assert response.json() == {"status": "ok"}
 
 
+async def test_root_is_not_served_by_the_api(client: AsyncTestClient):
+    """The frontend is served by nginx, not Litestar.
+
+    Guards the decoupling: re-enabling the Vite plugin at runtime would mount an
+    HTML catch-all on `/` and silently couple the two again.
+    """
+    response = await client.get("/")
+    assert response.status_code == HTTP_404_NOT_FOUND
+
+
 async def test_hello(client: AsyncTestClient):
     response = await client.get("/api/hello")
     assert response.status_code == HTTP_200_OK

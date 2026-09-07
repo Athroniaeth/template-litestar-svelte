@@ -9,7 +9,7 @@
     "serve": "vite preview",
     "watch": "pnpm run serve",
     "update": "pnpm update",
-    "generate-types": "openapi-ts --config openapi-ts.config.ts",
+    "generate-types": "openapi-ts --file openapi-ts.config.ts",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write . && eslint --fix ."
   },

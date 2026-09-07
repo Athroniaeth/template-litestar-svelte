@@ -49,19 +49,24 @@ jobs:
       - name: Install dependencies (backend + frontend)
         run: just install
 
-      - name: Generate API types
-        run: uv run litestar assets generate-types
-
-      - name: Lint + test
+      # `just check` starts with check-types, which regenerates openapi.json and
+      # fails on any diff: the contract must be committed alongside the handlers.
+      - name: Contract check + lint + test
         run: just check
 
   docker:
-    name: Docker build
+    name: Docker build (${{ matrix.image }})
     # main is the release branch, so the heavier image build runs only there.
     # develop (and its PRs) stays light: the `check` job alone.
     if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
     runs-on: ubuntu-latest
+    # The two images are independent, so they build in parallel and a failure
+    # points straight at the side that broke.
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, web]
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        run: docker build -t litestar-template:ci .
+        run: docker build -f Dockerfile.${{ matrix.image }} -t litestar-template-${{ matrix.image }}:ci .

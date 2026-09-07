@@ -1,7 +1,9 @@
 import { defineConfig } from "@hey-api/openapi-ts";
 
 export default defineConfig({
-  input: "./src/generated/openapi.json",
+  // Le contrat vit à la racine du dépôt et y est versionné : le frontend se génère
+  // sans Python, et tout changement d'API apparaît en diff dans la revue.
+  input: "../openapi.json",
   output: "./src/generated/api",
   plugins: [
     "@hey-api/typescript",

@@ -6,25 +6,30 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 Squelette de projet Litestar + Svelte, avec le backend Python et le frontend Vite
-dans deux dossiers distincts.
+découplés : deux images Docker, deux cycles de déploiement, deux dimensionnements.
 
-[litestar-vite](https://github.com/litestar-org/litestar-vite) fait le lien entre
-les deux : `litestar run` démarre l'API et le serveur Vite ensemble, et une commande
-dérive les types TypeScript des handlers Python.
+Le contrat entre les deux est `openapi.json`, versionné à la racine. Le backend
+l'exporte depuis ses handlers, le frontend en dérive ses types TypeScript sans avoir
+besoin de Python. En production, nginx sert le bundle et proxifie `/api` vers
+Litestar : une seule origine côté navigateur, donc pas de CORS ni d'URL d'API dans
+le bundle.
 
-Litestar 2.24, Svelte 5, Vite 8, Tailwind 4, pnpm, uv.
+Litestar 2.24, Svelte 5, Vite 8, Tailwind 4, nginx, pnpm, uv.
 
 ## Structure
 
 ```
-backend/          application Litestar
-  __init__.py     chemins et variables d'environnement
-  app.py          handlers et configuration du plugin Vite
+backend/          application Litestar — sert /api, rien d'autre
+  __init__.py     chemins du projet
+  app.py          handlers et configuration des plugins
 frontend/         projet Vite (racine Vite)
   src/            sources Svelte
-  src/generated/  types TypeScript générés (non versionnés)
-  public/         bundle de production (non versionné)
-Dockerfile        image de production multi-étages (Granian)
+  src/generated/  client TypeScript généré (non versionné)
+  dist/           bundle de production (non versionné)
+deploy/nginx.conf reverse proxy : bundle + /api sur une seule origine
+openapi.json      contrat d'API versionné, exporté depuis les handlers
+Dockerfile.api    image de l'API (Python seul)
+Dockerfile.web    image du frontend (bundle Vite + nginx)
 justfile          raccourcis des tâches courantes
 ```
 
@@ -56,12 +61,15 @@ Les tâches courantes passent par `just` ; `just` seul liste les recettes.
 
 | Commande | Effet |
 |----------|-------|
-| `just dev` | lance l'app en rechargement à chaud (Litestar + Vite) |
+| `just dev` | lance l'API (:8000) et le frontend (:5173) ensemble |
+| `just dev-api` | l'API seule, en rechargement à chaud |
+| `just dev-front` | le frontend seul, avec HMR |
+| `just types` | exporte `openapi.json` et régénère le client TypeScript |
 | `just lint` | ruff + pyrefly (Python), eslint + prettier + svelte-check (frontend) |
 | `just format` | formate et corrige (ruff côté Python, prettier + eslint côté frontend) |
 | `just test` | pytest avec couverture |
 | `just build` | bundle de production du frontend |
-| `just check` | tout : lint + tests (ce que lance la CI) |
+| `just check` | tout : contrat + lint + tests (ce que lance la CI) |
 
 Chaque recette reprend les commandes `uv`/`pnpm` sous-jacentes ; rien n'oblige à
 passer par `just`, mais c'est le point d'entrée unique, aligné sur les hooks
@@ -70,11 +78,16 @@ pre-commit et la CI.
 ## Démarrer
 
 ```bash
-just dev              # ou : uv run litestar run --reload
+just dev
 ```
 
-Le site répond sur http://127.0.0.1:8000. Litestar lance Vite lui-même, et le
-rechargement à chaud fonctionne sur les fichiers Svelte.
+Deux process démarrent : l'API sur le port 8000 et le dev server Vite sur 5173.
+**Le site se consulte sur http://127.0.0.1:5173** — Vite proxifie `/api` vers
+l'API, exactement comme nginx le fera en production. Le code client appelle donc
+`/api` en relatif et ignore où vit le backend, en dev comme en production.
+
+L'API seule ne sert aucune page : `http://127.0.0.1:8000/` répond 404, par
+construction. Un test le vérifie.
 
 Si quelque chose cloche dans la configuration :
 
@@ -84,27 +97,33 @@ uv run litestar assets doctor
 
 ## Docker
 
-Le `Dockerfile` est multi-étages : l'étage de build embarque Python et Node (le
-bundle frontend dépend du backend via `litestar assets build`), l'étage final ne
-garde que l'interpréteur, le venv et les fichiers servis, sous un utilisateur non
-privilégié.
+Deux images, chacune buildable sans l'autre :
+
+- `Dockerfile.api` — Python seul, sans Node ni outils de build. Ne contient que
+  l'interpréteur, le venv et `backend/`, sous un utilisateur non privilégié.
+- `Dockerfile.web` — étage Node qui dérive les types de `openapi.json` et build le
+  bundle, puis nginx sans privilèges qui le sert.
 
 ```bash
 docker compose up --build
 ```
 
-L'app répond sur http://127.0.0.1:8000. Les variables `LITESTAR_APP` et
-`VITE_DEV_MODE=false` sont déjà portées par l'image.
+L'app répond sur http://127.0.0.1:8000, servie par nginx. L'API n'est pas exposée
+sur l'hôte : seul `web` l'atteint, par le réseau interne de compose. Le service
+`web` attend que le healthcheck de `api` passe avant de démarrer.
 
-Sans conteneur, le build de production se fait à la main :
+### Dimensionner
+
+L'API porte la charge : le frontend est un bundle statique qu'un visiteur télécharge
+une fois, puis met en cache (les noms sont hashés, nginx les sert en `immutable`).
+C'est donc l'API qu'on dimensionne.
 
 ```bash
-uv run litestar assets build
-VITE_DEV_MODE=false uv run litestar run
+WEB_CONCURRENCY=4 docker compose up -d    # 4 workers Granian
 ```
 
-Le bundle atterrit dans `frontend/public/`. Litestar le sert via le manifeste, sans
-démarrer Vite.
+Passer à l'horizontal ensuite ne demande que des répliques d'`api` derrière nginx —
+à condition de n'avoir mis aucun état en mémoire dans le processus.
 
 ## Qualité
 
@@ -128,11 +147,21 @@ trouve pas le package `backend` et la commande échoue.
 Après avoir touché à une route ou à un type de réponse :
 
 ```bash
-uv run litestar assets generate-types
+just types      # uv run litestar assets generate-types
 ```
 
-La commande exporte le schéma OpenAPI, puis en tire les types, les schémas Zod, un
-client d'API et un helper de routage, dans `frontend/src/generated/`.
+La commande écrit `openapi.json` à la racine, puis en tire les types, les schémas
+Zod, un client d'API et un helper de routage dans `frontend/src/generated/`.
+
+**Committez `openapi.json`.** C'est le contrat : il rend le frontend buildable sans
+Python, et tout changement d'API devient un diff lisible en revue. `just check`
+(donc la CI) régénère le fichier et échoue s'il a dérivé des handlers.
+
+Le frontend peut se régénérer seul, sans Python :
+
+```bash
+pnpm -C frontend generate-types
+```
 
 Un détail qui compte : annotez les réponses avec une dataclass ou un
 `msgspec.Struct`. Un `dict[str, str]` donne un `{ [key: string]: string }`,
@@ -158,18 +187,18 @@ via `prek install` (voir `default_install_hook_types` dans `.pre-commit-config.y
 ### Travailler sur le frontend seul
 
 ```bash
-cd frontend
-pnpm dev       # Vite seul, sans backend
-pnpm build     # build puis vérification des types
+just dev-front            # Vite seul, sans backend
+just build                # bundle de production dans frontend/dist
 ```
 
-Dans ce cas, ajoutez `VITE_API_URL` au `.env` pour pointer vers le backend lancé à
-part.
+Les appels `/api` sont proxifiés vers `http://127.0.0.1:8000`. Si l'API écoute
+ailleurs, pointez `API_URL` dessus dans le `.env`. Sans API lancée, l'app s'affiche
+et les appels échouent — le frontend reste développable seul.
 
 ## Branches et CI
 
 Le dépôt suit [Gitflow](https://nvie.com/posts/a-successful-git-branching-model/) :
 `main` (production, taguée), `develop` (intégration), et des branches `feature/*`,
-`release/*`, `hotfix/*`. La CI (`.github/workflows/ci.yml`) valide lint et tests sur
-`main` et `develop` ; le build de l'image Docker ne tourne que sur `main`, la branche
-de release, pour garder `develop` léger.
+`release/*`, `hotfix/*`. La CI (`.github/workflows/ci.yml`) valide le contrat, le lint
+et les tests sur `main` et `develop` ; le build des deux images Docker ne tourne que
+sur `main`, la branche de release, pour garder `develop` léger.

@@ -11,9 +11,33 @@ install:
     uv sync
     uv run litestar assets install
 
-# Run the app with hot reload (Litestar + Vite together).
+# Vite proxies /api to the API, so browse the app on :5173.
+
+# Run API (:8000) and frontend (:5173) together; Ctrl-C stops both.
 dev:
-    uv run litestar run --reload
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'kill 0' EXIT
+    just dev-api &
+    just dev-front &
+    wait
+
+# Watch backend/ only: Vite writes frontend/dist/hot on startup, which would
+# otherwise restart the API every time the frontend boots.
+
+# API only, with reload. Serves no frontend: `/` returns 404 by design.
+dev-api:
+    uv run litestar run --reload --reload-dir backend
+
+# Frontend only, with HMR. Proxies /api to the API on :8000.
+dev-front:
+    pnpm -C frontend dev
+
+# Run after touching a route or a response type, then commit openapi.json.
+
+# Export openapi.json from the handlers and derive the TypeScript client.
+types:
+    uv run litestar assets generate-types
 
 # Static checks, no writes: ruff + pyrefly (Python), eslint + prettier + svelte-check (frontend).
 lint:
@@ -33,9 +57,15 @@ format:
 test:
     uv run pytest
 
-# Build the production frontend bundle.
+# Build the production frontend bundle into frontend/dist (no Python needed).
 build:
-    uv run litestar assets build
+    pnpm -C frontend build
 
-# Full gate before pushing (what CI runs): lint + tests.
-check: lint test
+# The guard that replaces the build-time coupling between frontend and backend.
+
+# Fail if openapi.json drifted from the handlers.
+check-types: types
+    git diff --exit-code openapi.json
+
+# Full gate before pushing (what CI runs): contract check + lint + tests.
+check: check-types lint test
