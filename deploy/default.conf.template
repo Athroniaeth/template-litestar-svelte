@@ -80,6 +80,16 @@ server {
 
     # Asked for by browsers on their own. Without this it falls through to the SPA
     # fallback below and answers HTML with a 200, where an icon is expected.
+    # robots.txt and sitemap.xml are generated from the request host, so they
+    # follow whatever domain the site is served on. They sit at the root
+    # because that is where a crawler looks for them.
+    location ~ ^/(robots\.txt|sitemap\.xml)$ {
+        proxy_pass http://api:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
     location = /favicon.ico {
         try_files $uri =404;
         access_log off;

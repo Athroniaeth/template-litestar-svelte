@@ -236,6 +236,36 @@ que nginx écrase et qu'un appelant ne peut donc pas forger.
 `WEB_CONCURRENCY=4`, le quota effectif est donc quadruple. Le rendre exact, et le faire
 survivre à plusieurs répliques d'API, demande un magasin partagé comme Redis.
 
+## Référencement
+
+`backend/seo.py` sert `robots.txt` et `sitemap.xml` à la racine du site, générés
+depuis l'hôte de la requête : une préproduction s'annonce elle-même et non la
+production, sans configuration. nginx les proxifie vers l'API, comme `/api`.
+
+Une seule chose à tenir à jour, `STATIC_PATHS` :
+
+```python
+STATIC_PATHS = ("/", "/about", "/pricing")
+```
+
+C'est le seul endroit où la forme du site est écrite. Une route absente de
+cette liste est une route qu'aucun moteur ne trouvera, et la raison tient en
+une phrase : **une application monopage est invisible pour tout ce qui
+n'exécute pas JavaScript**. Chaque URL renvoie le même document vide, aucun
+lien ne survit sans le bundle, donc un robot apprend qu'il existe exactement
+une page.
+
+Le `<head>` de `frontend/index.html` est le reste de l'histoire : c'est le seul
+texte qu'un robot lit avant d'exécuter quoi que ce soit. Titre, description et
+balises `og:` y sont à réécrire pour votre application — ce ne sont pas des
+détails, c'est la page, du point de vue de la plupart des robots.
+
+Quand le site grandit au-delà de quelques routes, la suite logique est de
+préremplir : écrire un fichier HTML par route au moment du build, avec son
+titre, sa description et son `<link rel="canonical">`, et laisser le bundle
+remplacer ce contenu au montage. Le visiteur et le robot reçoivent alors la
+même page, et `STATIC_PATHS` reste la liste qui pilote les deux.
+
 ## Qualité
 
 Le lint, le typage et les tests couvrent backend et frontend d'un seul point :

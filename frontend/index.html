@@ -4,7 +4,28 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+
+    <!-- The first block of text an index reads. A single page application shows
+         a crawler nothing else until it runs the bundle, so these are not a
+         detail: they are the page, as far as most crawlers are concerned.
+         Rewrite all four for your application, and keep the title under sixty
+         characters and the description under a hundred and sixty. -->
+    <title>Litestar + Svelte template</title>
+    <meta
+      name="description"
+      content="A Litestar API and a Svelte single page application, decoupled: two images, two deployment cycles, one versioned OpenAPI contract between them."
+    />
+
+    <!-- What a link preview shows on Slack, Discord, X and every chat app.
+         og:url and the image want absolute URLs; set them once you have a
+         domain. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Litestar + Svelte template" />
+    <meta
+      property="og:description"
+      content="A Litestar API and a Svelte single page application, decoupled: two images, two deployment cycles, one versioned OpenAPI contract between them."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <div id="app"></div>
