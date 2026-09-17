@@ -8,20 +8,31 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+#
+# Anchored to the repository root with a leading slash, and that is not cosmetic. In
+# gitignore syntax a pattern with no slash in the middle matches at *any* depth, so an
+# unanchored `lib/` also excludes frontend/src/lib — which is where a Svelte project
+# conventionally keeps its shared modules. The failure is silent and slow: the files
+# are on disk, the dev server reads them, `docker build` reads them too because the
+# build context is the working tree and not the index, and the first sign of trouble
+# is an unresolved import the first time the image is built from a fresh clone.
+#
+# These names all mean Python build artefacts at the top level. The frontend has its
+# own .gitignore for its own, so nothing here needs to reach into it.
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
+/share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -74,7 +85,7 @@ docs/_build/
 
 # PyBuilder
 .pybuilder/
-target/
+/target/
 
 # Jupyter Notebook
 .ipynb_checkpoints

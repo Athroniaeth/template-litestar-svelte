@@ -1,3 +1,6 @@
+import shutil
+import subprocess
+
 import pytest
 from litestar import Litestar, get
 from litestar.exceptions import ImproperlyConfiguredException
@@ -10,6 +13,7 @@ from litestar.status_codes import (
 )
 from litestar.testing import AsyncTestClient, RequestFactory
 
+from backend import PROJECT_ROOT
 from backend.app import build_openapi_config, build_rate_limit_config
 from backend.exceptions import NotFoundError, ProblemDetail, app_error_handler
 from backend.security import (
@@ -172,3 +176,56 @@ async def test_rate_limit_is_wired_into_the_app(client: AsyncTestClient, api_key
     response = await client.get("/api/hello", headers={API_KEY_HEADER: api_key})
     assert response.status_code == HTTP_200_OK
     assert "RateLimit-Limit" in response.headers
+
+
+# Everything under these is hand-written and belongs in the repository.
+SOURCE_ROOTS = (
+    "backend",
+    "tests",
+    "deploy",
+    "frontend/src",
+)
+
+# The one exception, and it is deliberate: the API client is regenerated from
+# openapi.json during the Docker build, so committing it would be committing a
+# derivative of a file two directories away.
+IGNORED_ON_PURPOSE = ("frontend/src/generated/",)
+
+
+def test_no_source_file_is_hidden_from_git():
+    """A .gitignore pattern that swallows source is invisible until a clean clone.
+
+    The Python .gitignore this repository started from lists `lib/`, and in gitignore
+    syntax that matches a directory of that name at any depth — including
+    frontend/src/lib, where a Svelte project keeps its shared modules. Nothing local
+    notices: the files are on disk, the dev server reads them, and `docker build`
+    reads them too, because the build context is the working tree and not the index.
+    It surfaces as an unresolved import the first time the image is built from a
+    fresh clone, which is to say on the deployment server.
+
+    The patterns are anchored to the root now. This is what keeps them anchored.
+    """
+    if shutil.which("git") is None or not (PROJECT_ROOT / ".git").exists():
+        pytest.skip("not a git checkout")
+
+    listed = subprocess.run(
+        [
+            "git",
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--",
+            *SOURCE_ROOTS,
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    hidden = [
+        path
+        for path in listed.stdout.splitlines()
+        if not path.startswith(IGNORED_ON_PURPOSE) and "__pycache__" not in path
+    ]
+    assert not hidden, "excluded from git by .gitignore: " + ", ".join(hidden)
